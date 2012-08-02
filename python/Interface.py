@@ -62,14 +62,17 @@ class Interface(Core.HwInterface) :
 
         self.__buffer.reset()
         self.__comm.softReset()
-        
+
+    @Core.DEB_MEMBER_FUNCT
+    def takeDarks(self,Texp):
+        self.__comm.takeDarks(Texp)
+
     @Core.DEB_MEMBER_FUNCT
     def prepareAcq(self):
         self.__buffer.reset()
         self.__syncObj.prepareAcq()
         self.__comm.Configure()
-        self.__comm.prepareAcquisition()
-        pass
+        self.__acquisition_start_flag = False
 
     @Core.DEB_MEMBER_FUNCT
     def startAcq(self) :
@@ -96,7 +99,7 @@ class Interface(Core.HwInterface) :
             status.det = Core.DetFault
             status.acq = Core.AcqFault
             deb.Error("Detector is in Fault state")
-        elif ComState == Communication.DTC_STATE_CONFIGDET :
+        elif ComState == Communication.DTC_STATE_CONFIGDET or not self.__comm.darksReady()  :
             status.det = Core.DetFault
             status.acq = Core.AcqConfig
             deb.Warning("Waiting for configuration")
@@ -108,7 +111,8 @@ class Interface(Core.HwInterface) :
                 status.det = Core.DetIdle
                 lastAcquiredFrame = self.__buffer.getLastAcquiredFrame()
                 requestNbFrame = self.__syncObj.getNbFrames()
-                if not self.__acquisition_start_flag or \
+                print "Frames set-rdy:",requestNbFrame,lastAcquiredFrame+1
+                if (not self.__acquisition_start_flag) or \
                         (lastAcquiredFrame >= 0 and \
                              lastAcquiredFrame == (requestNbFrame - 1)):
                     status.acq = Core.AcqReady

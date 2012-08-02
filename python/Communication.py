@@ -60,6 +60,7 @@ class Communication(threading.Thread):
         self.__cond = threading.Condition()
         self.__Command = self.COM_NONE
         self.__Run = True
+        self.__DarksReady = False
         self.__Kind = 5
         self.__NbFrames = 0
         self.__FrameId = -1 
@@ -76,14 +77,22 @@ class Communication(threading.Thread):
         self._Status = self._dll.CCDStatus
         self._Status.restype = c_char_p
 
-        self._dll.CCDSetProperty("CCD_DTHOSTNAME",   ENV_DTHOSTNAME,1)
-        self._dll.CCDSetProperty("CCD_DTPORT",       ENV_DTPORT,1)
-        self._dll.CCDSetProperty("CCD_DTSECPORT",    ENV_DTSECPORT,1)
-        self._dll.CCDSetProperty("CCD_XFHOSTNAME",   ENV_XFHOSTNAME,1)
-        self._dll.CCDSetProperty("CCD_XFPORT",       ENV_XFPORT,1)
-        self._dll.CCDSetProperty("CCD_DC_LOCAL_LOG", ENV_DC_LOCAL_LOG,1)
-        self._dll.CCDSetProperty("CCD_DC_CONFIG",    ENV_DC_CONFIG,1)
-        self._dll.CCDSetProperty("CCD_N_CTRL",       ENV_N_CTRL,1)
+        if not os.environ.has_key(   "CCD_DTHOSTNAME"):
+            self._dll.CCDSetProperty("CCD_DTHOSTNAME",   ENV_DTHOSTNAME,1)
+        if not os.environ.has_key(   "CCD_DTPORT"):
+            self._dll.CCDSetProperty("CCD_DTPORT",       ENV_DTPORT,1)
+        if not os.environ.has_key(   "CCD_DTSECPORT"):
+            self._dll.CCDSetProperty("CCD_DTSECPORT",    ENV_DTSECPORT,1)
+        if not os.environ.has_key(   "CCD_XFHOSTNAME"):
+            self._dll.CCDSetProperty("CCD_XFHOSTNAME",   ENV_XFHOSTNAME,1)
+        if not os.environ.has_key(   "CCD_XFPORT"):
+            self._dll.CCDSetProperty("CCD_XFPORT",       ENV_XFPORT,1)
+        if not os.environ.has_key(   "CCD_DC_LOCAL_LOG"):
+            self._dll.CCDSetProperty("CCD_DC_LOCAL_LOG", ENV_DC_LOCAL_LOG,1)
+        if not os.environ.has_key(   "CCD_DC_CONFIG"):
+            self._dll.CCDSetProperty("CCD_DC_CONFIG",    ENV_DC_CONFIG,1)
+        if not os.environ.has_key(   "CCD_N_CTRL"):
+            self._dll.CCDSetProperty("CCD_N_CTRL",       ENV_N_CTRL,1)
         
         self._dll.CCDInitialize()
         
@@ -98,6 +107,9 @@ class Communication(threading.Thread):
 
     @Core.DEB_MEMBER_FUNCT
     def Configure(self) :
+        self.__FrameId = -1 
+        self.__LastFrameId = -1
+
         with self.__cond:
             self._dll.CCDSetHwPar(HWP_BIN,cast(        \
                     pointer(c_int(CONF_BIN)),POINTER(c_char)))
@@ -109,6 +121,16 @@ class Communication(threading.Thread):
                     pointer(c_int(CONF_NO_XFORM)),POINTER(c_char)))
             self._dll.CCDSetHwPar(HWP_STORED_DARK,cast(\
                     pointer(c_int(CONF_STORED_DARK)),POINTER(c_char)))
+
+#             self._dll.CCDSetHwPar(HWP_MULT_TRIGTYPE,cast(\
+#                     pointer(c_int(CONF_STORED_DARK)),POINTER(c_char)))
+#             self._dll.CCDSetHwPar(HWP_STORED_DARK,cast(\
+#                     pointer(c_int(CONF_STORED_DARK)),POINTER(c_char)))
+#             self._dll.CCDSetHwPar(HWP_STORED_DARK,cast(\
+#                     pointer(c_int(CONF_STORED_DARK)),POINTER(c_char)))
+#             self._dll.CCDSetHwPar(HWP_STORED_DARK,cast(\
+#                     pointer(c_int(CONF_STORED_DARK)),POINTER(c_char)))
+
             self._dll.CCDSetFilePar(FLP_COMMENT,       \
                                         c_char_p(CONF_COMMENT))
             self._dll.CCDSetFilePar(FLP_BEAM_X,cast(     \
@@ -155,6 +177,8 @@ class Communication(threading.Thread):
     @Core.DEB_MEMBER_FUNCT
     def setExposureTime(self,Time) :
         with self.__cond:
+            if Time == self.__ExposureTime :
+                return
             self.__ExposureTime = Time
             self._dll.CCDSetFilePar(FLP_TIME,cast(\
                     pointer(c_float(self.__ExposureTime)),POINTER(c_char)))
@@ -191,15 +215,20 @@ class Communication(threading.Thread):
         self._file_ext  = ext
 
     @Core.DEB_MEMBER_FUNCT
-    def prepareAcquisition(self) :
+    def takeDarks(self,Texp) :
         with self.__cond:
-            print "###Communication: Send prepareAcquisition command"
+            print "###Communication: Send takeDarks command"
             self.__Kind = 0
             self.__LastFrameId = -1
             self.__FrameId = -1
-            self.__Command = self.COM_START            
+            self.setExposureTime(Texp)
+            self.__Command = self.COM_START    
             self.__cond.notify()
         time.sleep(0.01)
+
+    @Core.DEB_MEMBER_FUNCT
+    def darksReady(self) :
+        return self.__DarksReady
 
     @Core.DEB_MEMBER_FUNCT
     def startAcquisition(self) :
@@ -296,6 +325,7 @@ class Communication(threading.Thread):
                             self.__cond.acquire()
                             continue
                         elif self.__Kind==1:
+                            self.__DarksReady = True
                             self.__Kind = 5     
                             self.__cond.acquire()
                             break
@@ -332,7 +362,7 @@ class Communication(threading.Thread):
                     self._dll.CCDAbort() 
                     if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                         raise Exception,'Communication: Error returned from CCDReset()'
-                    if self.__Command == self.COM_START :
+                    if self.__Command == self.COM_STOP :
                         self.__Command = self.COM_NONE
 
                 # Soft Reset Command

@@ -50,7 +50,7 @@ class _ImageReader(threading.Thread) :
         self.__com = weakref.ref(comm_object)
 
         self.__waitFlag = True
-        self.__numberOfNewFile = 0
+        #self.__numberOfNewFile = 0
         self.__lastImageRead = -1
         self.__readError = False
         
@@ -63,7 +63,7 @@ class _ImageReader(threading.Thread) :
     def reset(self) :
         with self.__cond:
             self.__waitFlag = True
-            self.__numberOfNewFile = 0
+            #self.__numberOfNewFile = 0
             self.__lastImageRead = -1
             self.__readError = False
             
