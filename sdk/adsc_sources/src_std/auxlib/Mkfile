@@ -15,8 +15,8 @@ $(DD)/libauxlib.a : $(OBJS)
 
 $(OEXTS) : filec.h
 
-clean :	$(OEXTS)
-	rm $?
+clean :
+	rm -f $(OEXTS)
 
 print :	*.c *.h Makefile
 	$(PRCMD) $?

@@ -13,8 +13,8 @@ $(DD)/detcon_temp_cmd_th : $(OBJS)
 
 $(OEXTS) : ../incl/ccdconv.h 
 
-clean :	$(OEXTS) $(OBS)
-	rm $?
+clean :	
+	rm -f $(OEXTS) $(OBS)
 
 print :	*.c *.h Makefile
 	$(PRCMD) $?

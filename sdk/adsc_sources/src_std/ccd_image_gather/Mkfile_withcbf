@@ -14,8 +14,8 @@ $(DD)/ccd_image_gather : $(OBJS) ../../lib/$(OSTYPE)/auxlib.a
 
 $(OEXTS) : defs.h ext.h
 
-clean :	$(OEXTS) $(OBS)
-	rm $?
+clean :	
+	rm -f $(OEXTS) $(OBS)
 
 print :	*.c *.h Makefile
 	$(PRCMD) $?

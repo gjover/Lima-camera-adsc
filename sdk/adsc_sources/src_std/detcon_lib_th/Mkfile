@@ -17,8 +17,8 @@ $(DD)/libdetcon_th.a : $(OBJS)
 
 $(OEXTS) : ../incl/ccdconv.h detcon_ext.h detcon_defs.h
 
-clean :	$(OEXTS)
-	rm $?
+clean :	
+	rm -f $(OEXTS)
 
 print :	*.c *.h Makefile
 	$(PRCMD) $?

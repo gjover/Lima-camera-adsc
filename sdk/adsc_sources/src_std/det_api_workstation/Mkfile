@@ -14,8 +14,8 @@ $(DD)/det_api_workstation : $(OBJS)
 
 $(OEXTS) : defs.h ext.h
 
-clean :	$(OEXTS) $(OBS)
-	rm $?
+clean	 :	
+	 rm -f $(OBS) $(OEXTS)
 
 print :	*.c *.h Makefile
 	$(PRCMD) $?
