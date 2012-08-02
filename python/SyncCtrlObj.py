@@ -58,17 +58,22 @@ class SyncCtrlObj(Core.HwSyncCtrlObj) :
         
     #@Core.Debug.DEB_MEMBER_FUNCT
     def getExpTime(self) :
-        if self.__exposure is None:
-            com = self.__comm()
-            self.__exposure = com.getExposureTime()
+#        if self.__exposure is None:
+        com = self.__comm()
+        self.__exposure = com.getExposureTime()
         return self.__exposure
 
     #@Core.Debug.DEB_MEMBER_FUNCT
     def setLatTime(self,lat_time):
         self.__latency = lat_time
+        com = self.__comm()
+        com.setLatencyTime(lat_time)
 
     #@Core.Debug.DEB_MEMBER_FUNCT
     def getLatTime(self) :
+#        if self.__latency is None:
+        com = self.__comm()
+        self.__latency = com.getLatencyTime()
         return self.__latency
 
     #@Core.Debug.DEB_MEMBER_FUNCT

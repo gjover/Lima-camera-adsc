@@ -152,6 +152,9 @@ class Communication(threading.Thread):
             self._dll.CCDSetFilePar(FLP_OSC_RANGE,cast(  \
                     pointer(c_float(CONF_OSC_RANGE)),POINTER(c_char)))
 
+            # Test
+            #self.getImage()
+
     @Core.DEB_MEMBER_FUNCT
     def getState(self) :
         with self.__cond:
@@ -177,12 +180,20 @@ class Communication(threading.Thread):
     @Core.DEB_MEMBER_FUNCT
     def setExposureTime(self,Time) :
         with self.__cond:
-            if Time == self.__ExposureTime :
-                return
+#            if Time == self.__ExposureTime :
+#                return
             self.__ExposureTime = Time
             self._dll.CCDSetFilePar(FLP_TIME,cast(\
                     pointer(c_float(self.__ExposureTime)),POINTER(c_char)))
             
+    @Core.DEB_MEMBER_FUNCT
+    def getLatencyTime(self) :
+        return self.__LatencyTime 
+    
+    @Core.DEB_MEMBER_FUNCT
+    def setLatencyTime(self,Time) :
+        self.__LatencyTime = Time
+        
     @Core.DEB_MEMBER_FUNCT
     def getNbFrames(self) :
         with self.__cond:
@@ -217,12 +228,13 @@ class Communication(threading.Thread):
     @Core.DEB_MEMBER_FUNCT
     def takeDarks(self,Texp) :
         with self.__cond:
-            print "###Communication: Send takeDarks command"
             self.__DarksReady = False
+            print "###Communication: Send takeDarks command"
             self.__Kind = 0
             self.__LastFrameId = -1
             self.__FrameId = -1
             self.setExposureTime(Texp)
+            self.setLatencyTime(1.0)
             self.__Command = self.COM_START    
             self.__cond.notify()
         time.sleep(0.01)
@@ -279,12 +291,14 @@ class Communication(threading.Thread):
                 # Test if any error
                 if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                     raise Exception,'Communication: Unknown Error'
-
                 
-
                 # Start Command
                 if self.__Command == self.COM_START : 
                     print "###Communication: Start Command"                    
+
+                    latency_time = 0
+                    start_time = time.time()
+                    stop_time = time.time()
                     ## Setup acquisition
                     while self.__FrameId - self.__LastFrameId < self.__NbFrames or self.__Kind<5:
                         nextFullPath = os.path.join(self._file_path,
@@ -298,24 +312,35 @@ class Communication(threading.Thread):
                             self.__cond.acquire()
                             raise Exception,'Communication: Error returned at pre-acquisition'
 
-                        ## Start acquisition
                         while self._dll.CCDState() != self.DTC_STATE_IDLE:
                             time.sleep(self.__WaitTime)
                             #self.__cond.wait( self.__WaitTime)
-                        print "###Communication: Start Img",nextFullPath,self.__Kind
+                        
+                        # Latency time (remaining)
+                        now_time =  time.time()
+                        if ( stop_time + latency_time > now_time ):
+                            time.sleep( stop_time + latency_time - now_time)
+
+                        ## Start acquisition
+                        start_time = time.time()
+                        print "###Communication: Start Img",nextFullPath,self.__Kind,"(t",start_time,")"
                         self._dll.CCDStartExposure()
                         if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                             self.__cond.acquire()
                             raise Exception,'Communication: Error returned from CCDStartExposure()'
 
-                        ## Exposure time
-                        time.sleep(self.__ExposureTime)
-
-                        ## Stop acquisition
                         while self._dll.CCDState() != self.DTC_STATE_EXPOSING:
                             time.sleep(self.__WaitTime)
                             #self.__cond.wait(self.__WaitTime)
-                        print "###Communication: Stop Img",nextFullPath,self.__Kind
+
+                        ## Exposure time
+                        now_time =  time.time()
+                        if ( start_time + self.__ExposureTime > now_time) :
+                            time.sleep( start_time + self.__ExposureTime - now_time)
+
+                        ## Stop acquisition
+                        stop_time = time.time()
+                        print "###Communication: Stop Img",nextFullPath,self.__Kind,"(t",stop_time,")"
                         self._dll.CCDStopExposure()
                         if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                             self.__cond.acquire()
@@ -348,7 +373,7 @@ class Communication(threading.Thread):
                             raise Exception,'Communication: Error returned from CCDGetImage()'
 
                         ## Latency time
-                        time.sleep(self.__LatencyTime)
+                        latency_time = self.__LatencyTime
 
                         self.__FrameId += 1
                         self.__cond.acquire()
@@ -383,6 +408,18 @@ class Communication(threading.Thread):
                         raise Exception,'Communication: Error returned from CCD_HWReset()'
                     if self.__Command == self.COM_HRESET :
                         self.__Command = self.COM_NONE
+
+                # Get Image
+                elif self.__Command == self.COM_GETIMAGE :
+                    print "###Communication: GetImage Command"
+                    self._dll.CCDGetImage()
+                    if  self._dll.CCDState() == self.DTC_STATE_ERROR:
+                        self.__cond.acquire()
+                        raise Exception,'Communication: Error returned from CCDGetImage()'
+                    
+                    if self.__Command == self.COM_GETIMAGE :
+                        self.__Command = self.COM_NONE
+                        
 
                 # By default wait for a command
                 else :

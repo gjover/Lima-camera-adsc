@@ -100,6 +100,7 @@ class Interface(Core.HwInterface) :
             status.acq = Core.AcqFault
             deb.Error("Detector is in Fault state")
         elif ComState == Communication.DTC_STATE_CONFIGDET or not self.__comm.darksReady()  :
+#        elif False:
             status.det = Core.DetFault
             status.acq = Core.AcqConfig
             deb.Warning("Waiting for configuration")
