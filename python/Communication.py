@@ -218,6 +218,7 @@ class Communication(threading.Thread):
     def takeDarks(self,Texp) :
         with self.__cond:
             print "###Communication: Send takeDarks command"
+            self.__DarksReady = False
             self.__Kind = 0
             self.__LastFrameId = -1
             self.__FrameId = -1
