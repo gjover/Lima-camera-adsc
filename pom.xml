@@ -4,7 +4,7 @@
     <parent>
         <groupId>fr.soleil.lib.Lima</groupId>
         <artifactId>Camera</artifactId>
-        <version>1.1.4</version>
+        <version>1.1.9</version>
     </parent>
 
     <groupId>fr.soleil.lib.Lima.Camera</groupId>
@@ -13,6 +13,18 @@
 
     <name>LimaAdsc</name>    <!-- use for the name of executable -->
     <description>This module controls the Adsc Camera</description>
+	
+	<dependencies>
+		<dependency>
+        <groupId>com.adsc-xray.lib</groupId>
+        <artifactId>AdscDriver-${aol}-shared-${mode}</artifactId>
+        <version>1.0.0</version>
+      </dependency>
+	  <dependency>
+      <groupId>uk.ac.ccp4</groupId>
+      <artifactId>DiffractionImage-${aol}-shared-release</artifactId>
+    </dependency>
+	</dependencies>
 
     <build>
         <plugins>
@@ -20,47 +32,16 @@
                 <groupId>org.freehep</groupId>
                 <artifactId>freehep-nar-plugin</artifactId>
                 <configuration>
-		    <cpp>
-                        <systemIncludePaths>
-                            	<systemIncludePath>./sdk/adsc_sources/src_std/incl</systemIncludePath>
-								<systemIncludePath>./sdk/adsc_sources/src_std/detcon_lib_th</systemIncludePath>
-								<systemIncludePath>./sdk/adsc_sources/src_std/auxlib</systemIncludePath>
-                        </systemIncludePaths>
-                        
+				<cpp>
                         <!-- define less verbose mode for gcc-->
                         <options>
                             <option>-w</option>
                         </options>
                     </cpp>
-                    <linker>
-                        <libs>
-                            <lib>
-                                <name>auxlib</name>
-                                <type>shared</type>
-                                <directory>./sdk/adsc_sources/lib/linux</directory>
-                            </lib>
-							<lib>
-                                <name>detcon_th</name>
-                                <type>shared</type>
-                                <directory>./sdk/adsc_sources/lib/linux</directory>
-                            </lib>
-                        </libs>
-                    </linker>
-                    <cpp>
-                        <!-- define less verbose mode for gcc-->
-                        <options>
-                            <option>-w</option>
-                        </options>
-                    </cpp>
+                    
+                    
                 </configuration>
             </plugin>
         </plugins>
     </build>
-  <dependencies>
-    <dependency>
-      <groupId>uk.ac.ccp4</groupId>
-      <artifactId>DiffractionImage-${aol}-shared-release</artifactId>
-    </dependency>
-  </dependencies>
-
 </project>

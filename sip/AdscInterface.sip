@@ -37,7 +37,7 @@ class AdscDetInfoCtrlObj : HwDetInfoCtrlObj
 	virtual void getCurrImageType(ImageType& curr_image_type /Out/);
 	virtual void setCurrImageType(ImageType  curr_image_type);
 
-	virtual void getPixelSize(double& pixel_size /Out/);
+	virtual void getPixelSize(double& x_size /Out/,double &y_size /Out/);
 	virtual void getDetectorType(std::string& det_type /Out/);
 	virtual void getDetectorModel(std::string& det_model /Out/);
 

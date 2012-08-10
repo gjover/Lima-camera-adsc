@@ -1,7 +1,0 @@
-<map id="G" name="G">
-<area shape="rect" id="node2" href="$classlima_1_1_adsc_1_1_det_info_ctrl_obj.html" title="lima::Adsc::DetInfoCtrlObj" alt="" coords="487,8,657,37"/>
-<area shape="rect" id="node6" href="$classlima_1_1_adsc_1_1_sync_ctrl_obj.html" title="lima::Adsc::SyncCtrlObj" alt="" coords="491,61,653,91"/>
-<area shape="rect" id="node8" href="$classlima_1_1_adsc_1_1_buffer_ctrl_obj.html" title="lima::Adsc::BufferCtrlObj" alt="" coords="489,115,655,144"/>
-<area shape="rect" id="node10" href="$classlima_1_1_adsc_1_1_reader.html" title="lima::Adsc::Reader" alt="" coords="109,115,243,144"/>
-<area shape="rect" id="node12" href="$classlima_1_1_adsc_1_1_bin_ctrl_obj.html" title="lima::Adsc::BinCtrlObj" alt="" coords="497,168,647,197"/>
-</map>

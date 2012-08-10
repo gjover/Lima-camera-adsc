@@ -95,10 +95,11 @@ void DetInfoCtrlObj::getCurrImageType(ImageType& curr_image_type)
 //-----------------------------------------------------
 //
 //-----------------------------------------------------
-void DetInfoCtrlObj::getPixelSize(double& pixel_size)
+void DetInfoCtrlObj::getPixelSize(double& x_size,double &y_size)
 {
 	DEB_MEMBER_FUNCT();
-	pixel_size = 0.1025880;
+	x_size = 0.1025880;
+	y_size = 0.1025880;
 }
 
 //-----------------------------------------------------
@@ -164,7 +165,7 @@ BufferCtrlObj::BufferCtrlObj(Camera& cam) :
 BufferCtrlObj::~BufferCtrlObj()
 {
 	DEB_DESTRUCTOR();
-	m_reader->stop();
+	m_reader->reset();
 	m_reader->exit();
 }
 
@@ -291,7 +292,7 @@ void BufferCtrlObj::unregisterFrameCallback(HwFrameCallback& frame_cb)
 void BufferCtrlObj::start()
 {
 	DEB_MEMBER_FUNCT();
-	m_reader->start();
+
 }
 
 //-----------------------------------------------------
@@ -300,7 +301,7 @@ void BufferCtrlObj::start()
 void BufferCtrlObj::stop()
 {
 	DEB_MEMBER_FUNCT();
-	m_reader->stop();
+	m_reader->start();
 }
 
 //-----------------------------------------------------
@@ -607,7 +608,6 @@ void Interface::startAcq()
 {
 	DEB_MEMBER_FUNCT();
 	m_adsc.startAcq();
-	m_buffer.start();
 }
 
 //-----------------------------------------------------

@@ -17,17 +17,16 @@ Reader::Reader(Camera& cam, HwBufferCtrlObj& buffer_ctrl)
 	DEB_CONSTRUCTOR();
 	try
 	{
+		m_full_file_name = "";
+		m_is_reset = false;
 		m_is_reader_open_image_file = true;
 		m_is_running = false;
-		m_is_stop_done = true;
-		m_image_number = 0;
 		m_is_timeout_signaled = false;
+		m_image_number = 0;
 		enable_timeout_msg(false);
 		enable_periodic_msg(false);
-		set_periodic_msg_period(kTASK_PERIODIC_TIMEOUT_MS);
+		set_periodic_msg_period(TASK_PERIODIC_MS);
 		m_cam.getMaxImageSize(m_image_size);
-		m_image = new uint16_t[m_image_size.getWidth() * m_image_size.getHeight()];
-		memset((uint16_t*) m_image, 0, m_image_size.getWidth() * m_image_size.getHeight() * 2);
 	}
 	catch (Exception &e)
 	{
@@ -45,11 +44,7 @@ Reader::~Reader()
 	DEB_DESTRUCTOR();
 	try
 	{
-		if (m_image != 0)
-		{
-			delete m_image;
-			m_image = 0;
-		}
+		//nop
 	}
 	catch (Exception &e)
 	{
@@ -60,17 +55,18 @@ Reader::~Reader()
 }
 
 //-----------------------------------------------------
-//
+// fix timeout value
 //-----------------------------------------------------
-void Reader::setTimeout(int TO)
+void Reader::setTimeout(int timeout)
 {
     DEB_MEMBER_FUNCT();
-    DEB_PARAM() << DEB_VAR1(TO);
-    m_timeout = TO;
+    DEB_PARAM() << DEB_VAR1(timeout);
+	yat::MutexLock scoped_lock(m_lock);
+	m_timeout.set_value(timeout);
 }
 
 //-----------------------------------------------------
-//
+// enable reading an image file on disk
 //-----------------------------------------------------
 void Reader::enableReader(void)
 {
@@ -79,7 +75,7 @@ void Reader::enableReader(void)
 }
 
 //-----------------------------------------------------
-//
+// disable reading the image file on disk, only simulated "null" image will be generated
 //-----------------------------------------------------
 void Reader::disableReader(void)
 {
@@ -88,14 +84,14 @@ void Reader::disableReader(void)
 }
 
 //---------------------------
-//- Reader::start()
+//- Start check/reading image
 //---------------------------
 void Reader::start()
 {
 	DEB_MEMBER_FUNCT();
 	try
 	{
-		this->post(new yat::Message(ADSC_START_MSG), kPOST_MSG_TMO);
+		this->post(new yat::Message(READER_START_MSG), POST_MSG_TMO);
 	}
 	catch (yat::Exception& ex)
 	{
@@ -105,14 +101,14 @@ void Reader::start()
 }
 
 //---------------------------
-//- Reader::stop()
+//- Nothing to do
 //---------------------------
 void Reader::stop()
 {
 	DEB_MEMBER_FUNCT();
 	try
 	{
-		this->post(new yat::Message(ADSC_STOP_MSG), kPOST_MSG_TMO);
+		this->post(new yat::Message(READER_STOP_MSG), POST_MSG_TMO);
 	}
 	catch (yat::Exception& ex)
 	{
@@ -122,14 +118,14 @@ void Reader::stop()
 }
 
 //---------------------------
-//- Reader::reset()
+//- Abort check/reading image
 //---------------------------
 void Reader::reset()
 {
 	DEB_MEMBER_FUNCT();
 	try
 	{
-		this->post(new yat::Message(ADSC_RESET_MSG), kPOST_MSG_TMO);
+		this->post(new yat::Message(READER_RESET_MSG), POST_MSG_TMO);
 	}
 	catch (yat::Exception& ex)
 	{
@@ -139,7 +135,7 @@ void Reader::reset()
 }
 
 //---------------------------
-//- Reader::getLastAcquiredFrame()
+//- get the last acquired image number
 //---------------------------
 int Reader::getLastAcquiredFrame(void)
 {
@@ -149,18 +145,18 @@ int Reader::getLastAcquiredFrame(void)
 }
 
 //---------------------------
-//- Reader::isTimeoutSignaled()
+//- Signal if a timeout is occured during the reader process
 //---------------------------
 bool Reader::isTimeoutSignaled()
 {
 	DEB_MEMBER_FUNCT();
 	yat::MutexLock scoped_lock(m_lock);
-	return m_is_timeout_signaled;
+	return 	m_is_timeout_signaled;
 }
 
 
 //---------------------------
-//- Reader::isRunning()
+//- Signal if reader process is in progress
 //---------------------------
 bool Reader::isRunning(void)
 {
@@ -170,7 +166,7 @@ bool Reader::isRunning(void)
 }
 
 //---------------------------
-//
+// yat::task handler
 //---------------------------
 void Reader::handle_message(yat::Message& msg) throw (yat::Exception)
 {
@@ -183,12 +179,31 @@ void Reader::handle_message(yat::Message& msg) throw (yat::Exception)
 			case yat::TASK_INIT:
 			{
 				DEB_TRACE() << "Reader::->TASK_INIT";
+
+				//- set timeout unit in seconds
+				m_timeout.set_unit(yat::Timeout::TMO_UNIT_MSEC);
+				//- set default timeout value
+				m_timeout.set_value(DEFAULT_READER_TIMEOUT_MSEC);
+
+				//- create empty image initialized to 0 , in order to manage simulated image if necessary
+				try
+				{
+					m_image = new uint16_t[m_image_size.getWidth() * m_image_size.getHeight()];
+				}
+				catch (const std::bad_alloc&)
+				{
+					throw LIMA_HW_EXC(Error, "Memory allocation exception !");
+				}
+
+				//set simulated image to 0
+				memset((uint16_t*) m_image, 0, m_image_size.getWidth() * m_image_size.getHeight() * 2);
 			}
 			break;
 				//-----------------------------------------------------
 			case yat::TASK_EXIT:
 			{
 				DEB_TRACE() << "Reader::->TASK_EXIT";
+				delete[] m_image;
 			}
 			break;
 				//-----------------------------------------------------
@@ -201,68 +216,92 @@ void Reader::handle_message(yat::Message& msg) throw (yat::Exception)
 			case yat::TASK_PERIODIC:
 			{
 				DEB_TRACE() << "Reader::->TASK_PERIODIC";
-			}
-			break;
-				//-----------------------------------------------------
-			case ADSC_START_MSG:
-			{
-				DEB_TRACE() << "Reader::->ADSC_START_MSG";
-				yat::MutexLock scoped_lock(m_lock);
+
+				//- force exit Task Reader due to a reset command or if timeout expired
 				{
-					m_image_number = 0;
-					m_is_stop_done = false;
-					m_is_running = true;
-					m_is_timeout_signaled = false;
-				}
-			}
-			break;
-				//-----------------------------------------------------
-			case ADSC_STOP_MSG:
-			{
-				DEB_TRACE() << "Reader::->ADSC_STOP_MSG";
-				if(!m_is_stop_done)//sequence must be always (start->stop, start->stop, ....)
-				{
-					std::string full_file_name = "";
-					m_is_stop_done = true;
-					if (m_is_reader_open_image_file)
+					yat::MutexLock scoped_lock(m_lock);
+					if ( m_is_reset || m_timeout.expired() )
 					{
-						full_file_name = m_cam.getImagePath()+m_cam.getFileName();
-						int m_elapsed_ms_from_stop = 0;
-						//TODO //////////////////////////
-						//Until now we must wait a xxx ms, because camera can be standby but file is not correctly present in the disk !!!!
-						//perhaps   we have to test if(acquired frame == requested frames) too !
-						//perhaps   we have to test if file exist on disk too !
-						//certainly we have to test if file exist on disk using DI::DiffractionImage !
-						/////////////////////////////////
-						while(m_elapsed_ms_from_stop<m_timeout)
-						{
-							yat::ThreadingUtilities::sleep(0, TIME_SLEEP*1E6);//unit of yat::sleep is nano
-							m_elapsed_ms_from_stop+=TIME_SLEEP;
-							DEB_TRACE() << "Elapsed time since stop() = " << m_elapsed_ms_from_stop << " ms";
-						}
+						DEB_TRACE() << "FATAL::Failed to load image : timeout expired !";
+						m_is_timeout_signaled = true;
+						//- disable periodic msg
+						enable_periodic_msg(false);
+						//- disable timeout
+						m_timeout.disable();
+						//- reset image number
+						m_image_number = 0;
+						//- reader task is no more running
+						m_is_running = false;
+						return;
+					}
+				}
+
+				//- get image file name from camera module and chek if file exist, in case of enabled reader, otherwise simulated image
+				if (m_is_reader_open_image_file)
+				{
+					m_full_file_name = m_cam.getImagePath() + m_cam.getFileName();
+					//- looking for file on disk
+					if(isFileExist(m_full_file_name))
+					{
+						enable_periodic_msg(false);	//file found, no need to search it anymore, so stop PERIODIC_MSG and continue forward
 					}
 					else
 					{
-						full_file_name = "SIMULATED_IMAGE_FILE.XXX";
+						return;						//not found, try PERIODIC_MSG again
 					}
+				}
+				else
+				{
+					enable_periodic_msg(false);	//no need to read file , so stop
+					//- simulated file , continue with addNewFrame()
+					m_full_file_name = "SIMULATED_IMAGE_FILE.XXX";
+				}
 
-					DEB_TRACE() << "Exposure SUCCEEDED received from camera !"; //all images are acquired !
-					DEB_TRACE() << "file = " << full_file_name;
-					//copy image file in a new frame buffer and signal it to the clients
-					addNewFrame(full_file_name);
-					yat::MutexLock scoped_lock(m_lock);
-					{
-						m_is_timeout_signaled = false;
-						m_is_running = false;
-					}
+				//- copy image file in a new frame buffer and signal it to the clients
+				addNewFrame(m_full_file_name);
 
+				//
+				yat::MutexLock scoped_lock(m_lock);
+				{
+					m_is_running = false;
 				}
 			}
 			break;
 				//-----------------------------------------------------
-			case ADSC_RESET_MSG:
+			case READER_START_MSG:
 			{
-				DEB_TRACE() << "Reader::->ADSC_RESET_MSG";
+				DEB_TRACE() << "Reader::->START_MSG";
+				//start PERIODIC_MSG in order to serach file on disk (if not simulated)
+				enable_periodic_msg(true);
+
+				//init. some variables
+				yat::MutexLock scoped_lock(m_lock);
+				{
+					m_image_number = 0;
+					m_is_running = true;
+					m_is_reset = false;
+					m_is_timeout_signaled = false;
+					//- re-arm timeout
+					m_timeout.restart();
+				}
+			}
+			break;
+				//-----------------------------------------------------
+			case READER_STOP_MSG:
+			{
+				DEB_TRACE() << "Reader::->STOP_MSG";
+			}
+			break;
+				//-----------------------------------------------------
+			case READER_RESET_MSG:
+			{
+				DEB_TRACE() << "Reader::->RESET_MSG";
+				enable_periodic_msg(false);
+				yat::MutexLock scoped_lock(m_lock);
+				{
+					m_is_timeout_signaled = false;
+					m_is_reset = true;
+				}
 			}
 			break;
 				//-----------------------------------------------------
@@ -277,18 +316,19 @@ void Reader::handle_message(yat::Message& msg) throw (yat::Exception)
 }
 
 //---------------------------
-//- Reader::addNewFrame()
+//- Fill image memory using DI library or use simulated image "null"
 //---------------------------
 void Reader::addNewFrame(std::string filename)
 {
 	DEB_MEMBER_FUNCT();
 	try
 	{
+		DEB_TRACE() << "-- file = " << filename;
 		StdBufferCbMgr& buffer_mgr = ((reinterpret_cast<BufferCtrlObj&>(m_buffer)).getBufferCbMgr());
 		bool continueAcq = false;
 		int buffer_nb, concat_frame_nb;
 
-		DEB_TRACE() << "image#" << m_image_number << " acquired !";
+		DEB_TRACE() << "-- image#" << m_image_number << " acquired !";
 		buffer_mgr.setStartTimestamp(Timestamp::now());
 		buffer_mgr.acqFrameNb2BufferNb(m_image_number, buffer_nb, concat_frame_nb);
 
@@ -332,4 +372,21 @@ void Reader::addNewFrame(std::string filename)
 	}
 	return;
 }
+
 //---------------------------
+// Check if file is found on disk
+//---------------------------
+bool Reader::isFileExist(const std::string& filename)
+{
+	//- check if file exist
+	std::ifstream file_exist(filename.c_str());
+	if ( file_exist )
+	{
+		//file found
+		return true;
+	}
+	return false;
+}
+
+//---------------------------
+

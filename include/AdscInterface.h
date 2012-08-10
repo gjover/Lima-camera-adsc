@@ -54,7 +54,7 @@ public:
 	virtual void getCurrImageType(ImageType& curr_image_type);
 	virtual void setCurrImageType(ImageType curr_image_type);
 
-	virtual void getPixelSize(double& pixel_size);
+	virtual void getPixelSize(double& x_size,double &y_size);
 	virtual void getDetectorType(string& det_type);
 	virtual void getDetectorModel(string& det_model);
 
@@ -202,21 +202,33 @@ public:
 	virtual void 	stopAcq();
 	virtual void 	getStatus(StatusType& status);
 	virtual int 	getNbHwAcquiredFrames();
+    //! Set the header parameters
 	void 			setHeaderParameters(const string& header);
-
+    //! Say to ADSC to store or not an image dark
 	void			setStoredImageDark(bool value);
+    //! Get the StoredImageDark flag
 	bool			getStoredImageDark(void);
+    //! Set the kind of image to be acquired (1-> ??; 2-> ?? ... 5-> ??)
 	void    		setImageKind(int image_kind);
+    //! Getter of the ImageKind
 	int	    		getImageKind(void);	
+    //! Set the Last image (0-> ??; 1-> ??)
 	void    		setLastImage(int last_image);
+    //! Getter of the last image
 	int	    		getLastImage(void);		
-
+    //! Set the file name to be saved
 	void 			setFileName(const string& name);
+    //! Get the file name
 	const string& 	getFileName(void);
+    //! Set the image path
 	void 			setImagePath(const string& path);
+    //! Get the image path
 	const string& 	getImagePath(void);
+    //! set the timeout
 	void 			setTimeout(int TO);
+    //! enable the image file reading (the image will be in lima)
 	void 			enableReader(void);
+    //! disable the image file reading (the image will NOT be in lima)
 	void 			disableReader(void);
 
 private:
