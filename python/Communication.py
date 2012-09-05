@@ -36,6 +36,8 @@ from ADSC_conf import *
 class Communication(threading.Thread):
     Core.DEB_CLASS(Core.DebModCameraCom, 'Communication')
     
+    MEAN_EXPOSURE_START_TIME = 0.320 # +- 0.11 seconds (For Exp+Lat > 1.2s )
+
     DTC_STATE_IDLE,\
         DTC_STATE_EXPOSING,\
         DTC_STATE_READING,\
@@ -152,8 +154,6 @@ class Communication(threading.Thread):
             self._dll.CCDSetFilePar(FLP_OSC_RANGE,cast(  \
                     pointer(c_float(CONF_OSC_RANGE)),POINTER(c_char)))
 
-            # Test
-            #self.getImage()
 
     @Core.DEB_MEMBER_FUNCT
     def getState(self) :
@@ -180,8 +180,6 @@ class Communication(threading.Thread):
     @Core.DEB_MEMBER_FUNCT
     def setExposureTime(self,Time) :
         with self.__cond:
-#            if Time == self.__ExposureTime :
-#                return
             self.__ExposureTime = Time
             self._dll.CCDSetFilePar(FLP_TIME,cast(\
                     pointer(c_float(self.__ExposureTime)),POINTER(c_char)))
@@ -296,18 +294,15 @@ class Communication(threading.Thread):
                 if self.__Command == self.COM_START : 
                     print "###Communication: Start Command"                    
 
-                    latency_time = 0
-                    start_time = time.time()
-                    stop_time = time.time()
+                    start_time = 0
+                    stop_time = 0
                     ## Setup acquisition
                     while self.__FrameId - self.__LastFrameId < self.__NbFrames or self.__Kind<5:
                         nextFullPath = os.path.join(self._file_path,
                                                     '%s%.5d%s' % (self._file_base,self.__FrameId+1,
                                                                   self._file_ext))
                         self.__cond.release()
-                        self._dll.CCDSetFilePar(FLP_FILENAME,c_char_p(nextFullPath))
-                        self._dll.CCDSetFilePar(FLP_KIND ,cast(\
-                                pointer(c_int(self.__Kind)),POINTER(c_char)))      
+
                         if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                             self.__cond.acquire()
                             raise Exception,'Communication: Error returned at pre-acquisition'
@@ -316,36 +311,83 @@ class Communication(threading.Thread):
                             time.sleep(self.__WaitTime)
                             #self.__cond.wait( self.__WaitTime)
                         
+                        self._dll.CCDSetFilePar(FLP_TIME,cast(\
+                                pointer(c_float(self.__ExposureTime)),POINTER(c_char)))
+                        self._dll.CCDSetFilePar(FLP_FILENAME,c_char_p(nextFullPath))
+                        self._dll.CCDSetFilePar(FLP_KIND ,cast(\
+                                pointer(c_int(self.__Kind)),POINTER(c_char)))
+
                         # Latency time (remaining)
                         now_time =  time.time()
-                        if ( stop_time + latency_time > now_time ):
-                            time.sleep( stop_time + latency_time - now_time)
+                        if ( start_time + self.__ExposureTime + self.__LatencyTime \
+                             - self.MEAN_EXPOSURE_START_TIME  > now_time ):
+                            time.sleep( start_time + self.__ExposureTime + self.__LatencyTime \
+                                        - self.MEAN_EXPOSURE_START_TIME - now_time)
+                        elif start_time != 0:
+                            print "###Communication: Latency time exceeded (+%f s)" %  \
+                                - (start_time + self.__ExposureTime + self.__LatencyTime \
+                                       - self.MEAN_EXPOSURE_START_TIME - now_time)
 
                         ## Start acquisition
-                        start_time = time.time()
-                        print "###Communication: Start Img",nextFullPath,self.__Kind,"(t",start_time,")"
                         self._dll.CCDStartExposure()
                         if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                             self.__cond.acquire()
                             raise Exception,'Communication: Error returned from CCDStartExposure()'
 
+                        # wait until actully exposing
                         while self._dll.CCDState() != self.DTC_STATE_EXPOSING:
-                            time.sleep(self.__WaitTime)
+                            time.sleep(0.01)
+                            #time.sleep(self.__WaitTime)
                             #self.__cond.wait(self.__WaitTime)
+                        start_time = time.time()
 
-                        ## Exposure time
-                        now_time =  time.time()
-                        if ( start_time + self.__ExposureTime > now_time) :
-                            time.sleep( start_time + self.__ExposureTime - now_time)
+                        # Exposure time
+                        time.sleep(self.__ExposureTime)
 
                         ## Stop acquisition
+                        while True:
+                            self._dll.CCDStopExposure()
+                            while self._dll.CCDState() == self.DTC_STATE_EXPOSING:
+                                time.sleep(0.01)
+                            if  self._dll.CCDState() != self.DTC_STATE_RETRY:
+                                break
+                            else:
+                                print "###Communication: Re-trying to Stop"
+
                         stop_time = time.time()
+
+                        print "###Communication: Start Img",nextFullPath,self.__Kind,"(t",start_time,")"
                         print "###Communication: Stop Img",nextFullPath,self.__Kind,"(t",stop_time,")"
-                        self._dll.CCDStopExposure()
+                        print "###Communication: Exposure:",stop_time - start_time
+
+                        state = self._dll.CCDState()
+                        while  state != self.DTC_STATE_IDLE:
+                            if state != self.DTC_STATE_READING :
+                                print "###Communication: State %d" % self.DTC_STATE[state]
+                                self.__cond.acquire()
+                                raise Exception,'Communication: Error returned from CCDStopExposure()'
+                        
+                            time.sleep(self.__WaitTime)
+                            state = self._dll.CCDState()
+                            #self.__cond.wait(self.__WaitTime)                    
+                        
+                        ## Get Image
+                        lastImg = 0
+                        if self.__FrameId - self.__LastFrameId == self.__NbFrames - 1 :
+                            lastImg = 1
+                        
+                        self._dll.CCDSetFilePar(FLP_LASTIMAGE,cast(\
+                                pointer(c_int(lastImg)),POINTER(c_char)))
                         if  self._dll.CCDState() == self.DTC_STATE_ERROR:
                             self.__cond.acquire()
-                            raise Exception,'Communication: Error returned from CCDStopExposure()'
-                        
+                            raise Exception,'Communication: Error returned at pot-acquisition'
+
+                        print "###Communication: Get Img",nextFullPath,self.__Kind
+                        self._dll.CCDGetImage()
+                        if  self._dll.CCDState() == self.DTC_STATE_ERROR:
+                            self.__cond.acquire()
+                            raise Exception,'Communication: Error returned from CCDGetImage()'
+
                         if self.__Kind==0:
                             self.__Kind = 1
                             self.__cond.acquire()
@@ -356,27 +398,9 @@ class Communication(threading.Thread):
                             self.__cond.acquire()
                             break
 
-                        ## Get Image
-                        self._dll.CCDSetFilePar(FLP_LASTIMAGE,cast(\
-                                pointer(c_int(1)),POINTER(c_char)))
-                        if  self._dll.CCDState() == self.DTC_STATE_ERROR:
-                            self.__cond.acquire()
-                            raise Exception,'Communication: Error returned at pot-acquisition'
-
-                        while  self._dll.CCDState() != self.DTC_STATE_IDLE:
-                            time.sleep(self.__WaitTime)
-                            #self.__cond.wait(self.__WaitTime)                    
-                        print "###Communication: Get Img",nextFullPath,self.__Kind
-                        self._dll.CCDGetImage()
-                        if  self._dll.CCDState() == self.DTC_STATE_ERROR:
-                            self.__cond.acquire()
-                            raise Exception,'Communication: Error returned from CCDGetImage()'
-
-                        ## Latency time
-                        latency_time = self.__LatencyTime
-
                         self.__FrameId += 1
                         self.__cond.acquire()
+                    # end frame's loop
 
                     self.__LastFrameId = self.__FrameId
                     if self.__Command == self.COM_START :

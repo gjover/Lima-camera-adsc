@@ -25,6 +25,7 @@ import weakref
 import threading
 import numpy
 import os
+import time
 
 from Lima import Core
 #import EdfFile
@@ -145,21 +146,27 @@ class _ImageReader(threading.Thread) :
 
                     if os.access(nextFullPath,os.R_OK) :
                         #print " #6 "*100
-                        print "###ImgReader: Reading file",nextFullPath
                         try:
                             # f = EdfFile.EdfFile(nextFullPath)
                             # data = f.GetData(0)
+
+                            # Whait for the file to be written
+                            while os.stat(nextFullPath).st_size != 512 + 2048*2048*2 :
+                                print "###ImgReader: Waiting for file %s to be ready" % nextFullPath
+                                time.sleep(0.1);
+                            
                             f = open(nextFullPath,'rb')
                             f.seek(0x200)
                             s = f.read(2048*2048*2)
                             d = numpy.fromstring(s, numpy.uint16)
                             data = d.reshape(2048, 2048)
-                        except:
-                            #print " #7 "*100
+                        except Exception, e:
+                            print "###ImgReader: Exception %s" % e
                             self.__cond.acquire()
-                            raise
+                            raise Exception, e
                             break
                         else:
+                            print "###ImgReader: Reading file",nextFullPath
                             #print " #8 "*100
                             try:
                                 buffer_ctrl = self.__buffer_ctrl()                              
@@ -179,10 +186,11 @@ class _ImageReader(threading.Thread) :
                                                     '%s%.5d%s' % (self.__com().getFileBase(),idImage2remove,
                                                                   self.__com().getFileExtension()))
                                     os.unlink(fullImagePath2remove)                                    
-                            except:
+                            except Exception, e:
+                                print "###ImgReader: Exception %s ." % e
                                 #print " #9 "*100
                                 self.__cond.acquire()
-                                raise
+                                raise Exception, e
 
                             self.__cond.acquire()
                             self.__lastImageRead = nextFrameId
@@ -208,10 +216,11 @@ class _ImageReader(threading.Thread) :
 			    	com = self.__com()
 			    	if com:
                                         com.stop_acquisition()	
-                        except:
+                        except Exception, e:
+                            print "###ImgReader: Exception %s .." % e
                             #print " #11 "*100
                             self.__cond.acquire()
-                            raise
+                            raise Exception, e
 
                         self.__cond.acquire()
                         if ErrorFlag:
@@ -305,8 +314,8 @@ class BufferCtrlObj(Core.HwBufferCtrlObj):
         def setTmpfsSize(self, new_size):
             det_info = self.__det_info()
             imageFormat = det_info.getMaxImageSize()
-            imageSize = imageFormat.getWidth() * imageFormat.getHeight() * 2
-            if new_size / 2 < imageSize:
+            imageSize = imageFormat.getWidth() * imageFormat.getHeight() * 2 # 2 == image 16bits
+            if new_size * 0.8 < imageSize:  # 80% occupancy
                 raise Core.Exception(Core.Hardware,Core.InvalidValue)
             self.__tmpfs_size = new_size
             
@@ -316,7 +325,7 @@ class BufferCtrlObj(Core.HwBufferCtrlObj):
             det_info = self.__det_info()
             imageFormat = det_info.getMaxImageSize()
             imageSize = imageFormat.getWidth() * imageFormat.getHeight() * 2 # 2 == image 16bits
-            return self.__tmpfs_size / imageSize / 2.
+            return self.__tmpfs_size / imageSize * 0.8 # 80% occupancy
 
         @Core.DEB_MEMBER_FUNCT
         def getBufferPtr(self,buffer_nb,concat_frame_nb = 0) :

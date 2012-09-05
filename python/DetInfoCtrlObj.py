@@ -125,8 +125,7 @@ class DetInfoCtrlObj(Core.HwDetInfoCtrlObj) :
 
     def get_min_latency(self) :
         """Minimum latency time after exposition in seconds"""
-	#return 0.140
-        return 1.0
+	return 0.140
 
     #@Core.DEB_MEMBER_FUNCT
     ##@todo don't know
