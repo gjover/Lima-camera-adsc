@@ -38,7 +38,7 @@ namespace Adsc
 
 /*******************************************************************
  * \class DetInfoCtrlObj
- * \brief Control object providing simulator detector info interface
+ * \brief Control object providing Adsc detector info interface
  *******************************************************************/
 class DetInfoCtrlObj : public HwDetInfoCtrlObj
 {
@@ -74,14 +74,14 @@ private:
 
 //*******************************************************************
 // \class BufferCtrlObj
-// \brief Control object providing Marccd buffering interface
+// \brief Control object providing Adsc buffering interface
 //*******************************************************************
 class BufferCtrlObj : public HwBufferCtrlObj
 {
-	DEB_CLASS_NAMESPC(DebModCamera, "BufferCtrlObj", "Marccd");
+	DEB_CLASS_NAMESPC(DebModCamera, "BufferCtrlObj", "Adsc");
 
 public:
-	BufferCtrlObj(Camera& simu);
+	BufferCtrlObj(Camera& cam);
 	virtual ~BufferCtrlObj();
 
 	virtual void setFrameDim(const FrameDim& frame_dim);
@@ -136,7 +136,7 @@ private:
 
 /*******************************************************************
  * \class SyncCtrlObj
- * \brief Control object providing simulator synchronization interface
+ * \brief Control object providing Adsc synchronization interface
  *******************************************************************/
 class SyncCtrlObj : public HwSyncCtrlObj
 {
@@ -166,7 +166,7 @@ private:
 
 /*******************************************************************
  * \class adscBinCtrlObj
- * \brief Control object providing simulator binning interface
+ * \brief Control object providing Adsc binning interface
  *******************************************************************/
 class BinCtrlObj : public HwBinCtrlObj
 {
