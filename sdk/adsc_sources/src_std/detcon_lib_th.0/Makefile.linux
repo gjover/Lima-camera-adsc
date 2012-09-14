@@ -1,5 +1,0 @@
-SHELL = /bin/sh
-CFLAGS_OS = -Wall -O -DUSE_PTHREADS -fPIC
-OSTYPE = linux
-
-include Mkfile

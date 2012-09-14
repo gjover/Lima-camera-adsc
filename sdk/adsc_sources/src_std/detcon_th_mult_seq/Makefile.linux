@@ -1,6 +1,0 @@
-SHELL = /bin/sh
-CFLAGS_OS = -g -O -Wall
-LDFLAGS = -lm -lpthread
-OSTYPE = linux
-
-include Mkfile

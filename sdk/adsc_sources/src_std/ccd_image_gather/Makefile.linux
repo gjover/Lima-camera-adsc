@@ -1,6 +1,0 @@
-SHELL = /bin/sh
-CFLAGS_OS = -O -g -Wall
-LDFLAGS = -lm -ljpeg
-OSTYPE = linux
-
-include Mkfile_nocbf

@@ -1,6 +1,0 @@
-SHELL = /bin/sh
-CFLAGS_OS = -O -g -Wall -DUSE_CBF -I../incl
-LDFLAGS = -lm
-OSTYPE = linux
-
-include Mkfile_withcbf

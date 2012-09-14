@@ -1,7 +1,0 @@
-SHELL = /bin/sh
-CFLAGS_OS = -g -Dunix -Wall -fPIC -O -I../incl
-OSTYPE = linux
-FC = ../../bin/share/f77
-
-
-include Mkfile
