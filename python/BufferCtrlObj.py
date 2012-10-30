@@ -26,6 +26,7 @@ import threading
 import numpy
 import os
 import time
+import random
 
 from Lima import Core
 #import EdfFile
@@ -49,6 +50,7 @@ class _ImageReader(threading.Thread) :
         self.__continue = True
         self.__buffer_ctrl = weakref.ref(buffer_ctrl)
         self.__com = weakref.ref(comm_object)
+        self.__ctSaving = None
 
         self.__waitFlag = True
         #self.__numberOfNewFile = 0
@@ -155,7 +157,18 @@ class _ImageReader(threading.Thread) :
                                 print "###ImgReader: Waiting for file %s to be ready" % nextFullPath
                                 time.sleep(0.1);
                             
+                            if self.__ctSaving == None :
+                                self.__ctSaving = self.__com().getCtSavingLink()
+
                             f = open(nextFullPath,'rb')
+                            for line in f:
+                                if "DATE" in line:
+                                    date = line.split("=")[1].split(";")[0]
+                                    break
+                            stamp = time.mktime(time.strptime(date))
+
+                            self.__ctSaving.addToFrameHeader(nextFrameId,["TimeStamp",str(stamp)])
+
                             f.seek(0x200)
                             s = f.read(2048*2048*2)
                             d = numpy.fromstring(s, numpy.uint16)
@@ -176,7 +189,17 @@ class _ImageReader(threading.Thread) :
                                                                          0,Core.HwFrameInfoType.Transfer)
                                     #print hw_frame_info
                                     continueFlag = buffer_ctrl._cbk.newFrameReady(hw_frame_info)
-                                    
+
+                                outputFileName = (self.__ctSaving.getDirectory() +
+                                                  "/" +self.__ctSaving.getPrefix() +
+                                                  self.__ctSaving.getParameters().indexFormat +
+                                                  self.__ctSaving.getSuffix()) % nextFrameId
+
+                                if os.access(buffer_ctrl._xfilename,os.R_OK):
+                                    fx = open(buffer_ctrl._xfilename,'w')
+                                    fx.write("%d %s\n" % (random.randint(0, 9999),outputFileName))
+                                    fx.close()
+
                                 del data
                                 del f
                                 #remove old image from buffer (tmp_fs)
@@ -248,11 +271,11 @@ class BufferCtrlObj(Core.HwBufferCtrlObj):
 #             self.__tmpfs_size = 2 * Height * Width * 2
             statvfs = os.statvfs(self.__com().getFilePath())
             self.__tmpfs_size = statvfs.f_bfree * statvfs.f_bsize
+            self._xfilename = "/beamlines/bl11/controls/adxv/adxv_current_frame"
 
             # All definitions must be done before the ImageReader starts
             self.__imageReader = _ImageReader(self,comm_object)
             self.__imageReader.start()
-
 
         def __del__(self) :
             self.__imageReader.quit()

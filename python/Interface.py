@@ -41,6 +41,7 @@ class Interface(Core.HwInterface) :
         self.__syncObj = SyncCtrlObj(self.__comm,self.__detInfo)
 	self.__acquisition_start_flag = False
         self.__kind = 5
+        self.__ctSaving = None
 
     def __del__(self) :
         self.__comm.quit()
@@ -71,9 +72,12 @@ class Interface(Core.HwInterface) :
     def prepareAcq(self):
         self.__buffer.reset()
         self.__syncObj.prepareAcq()
+        if self.__ctSaving != None :
+            self.__comm.setCtSavingLink(self.__ctSaving)
+
         self.__comm.Configure()
         self.__acquisition_start_flag = False
-
+ 
     @Core.DEB_MEMBER_FUNCT
     def startAcq(self) :
         self.__acquisition_start_flag = True
@@ -148,3 +152,5 @@ class Interface(Core.HwInterface) :
     def setFileExtension(self,ext) :
         self.__comm.setFileExtension(ext)
 
+    def setCtSavingLink(self,CTs):
+        self.__ctSaving = CTs

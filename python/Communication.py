@@ -70,6 +70,7 @@ class Communication(threading.Thread):
         self.__ExposureTime = 0
         self.__LatencyTime = 0
         self.__WaitTime = 0.05
+        self.__ctSaving = None
 
 #        self._FileName = './DefaultImage'
         self._file_path = '/ramdisk/adscbuffer/'
@@ -222,6 +223,13 @@ class Communication(threading.Thread):
     def setFileExtension(self,ext) :
         print "###Communication: New file extension=" + ext 
         self._file_ext  = ext
+
+    def setCtSavingLink(self,CTs):
+        self.__ctSaving = CTs
+        print "###Communication: CtSaving Link"
+
+    def getCtSavingLink(self):
+        return self.__ctSaving 
 
     @Core.DEB_MEMBER_FUNCT
     def takeDarks(self,Texp) :
