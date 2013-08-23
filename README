@@ -1,0 +1,2 @@
+in this directory a sim link to ADSC sdk is needed.
+The content must be a Makefile and the adsc_sources
