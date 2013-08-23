@@ -20,31 +20,33 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 ############################################################################
 import os
-
 from Lima import Core
 
 
-class DetInfoCtrlObj(Core.HwDetInfoCtrlObj) :
-    """Handles static information about the detector and the current image dimension."""
+class DetInfoCtrlObj(Core.HwDetInfoCtrlObj):
+    """Handles static information about the detector and the current image 
+    dimension."""
 
     #Core.DEB_CLASS(Core.DebModCamera, "DetInfoCtrlObj")
-    def __init__(self) :
+    def __init__(self):
         Core.HwDetInfoCtrlObj.__init__(self)
 
         ## Detector type and model separated by ,
         self.__name = 'ADSC,Quantum 210'
         ## Max image width
-        ##@todo Set the actual max width (4096) and implement the binning capability
-        self.__width  = 2048
+        ##@todo Set the actual max width (4096) 
+        ##and implement the binning capability
+        self.__width = 2048
         ## Max image height
-        ##@todo Set the actual max height (4096) and implement the binning capability
+        ##@todo Set the actual max height (4096) 
+        ##and implement the binning capability
         self.__height = 2048
 #         self.__width  = 4096
 #         self.__height = 4096
         ## Image depth in bits per pixel
         self.__bpp = 16
 
-    def init(self) :
+    def init(self):
         pass
         
     #@Core.DEB_MEMBER_FUNCT
@@ -117,15 +119,15 @@ class DetInfoCtrlObj(Core.HwDetInfoCtrlObj) :
     #@Core.DEB_MEMBER_FUNCT
     ##@todo don't know realy what is the maximum exposure time
     #for now set to a high value 1 hour
-    def get_max_exposition_time(self) :
+    def get_max_exposition_time(self):
         """Maximum exposition time allowed in seconds"""
         return 3600
 
     #@Core.DEB_MEMBER_FUNCT
 
-    def get_min_latency(self) :
+    def get_min_latency(self):
         """Minimum latency time after exposition in seconds"""
-	return 0.140
+        return 0.140
 
     #@Core.DEB_MEMBER_FUNCT
     ##@todo don't know
